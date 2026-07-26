@@ -1,1 +1,54 @@
+name: Build Android APK
 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Android source
+        run: unzip -o CalcPOS_Android_Source_1.0.3.zip
+
+      - name: Fix Compose weight import
+        run: |
+          sed -i '/import androidx.compose.foundation.layout.weight/d' \
+            android-client/app/src/main/java/ir/calcpos/licensemanager/ui/CalcPOSLicenseApp.kt
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 35
+        run: |
+          sdkmanager "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
+
+      - name: Build debug APK
+        working-directory: android-client
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CalcPOS-License-Manager-debug
+          path: android-client/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
